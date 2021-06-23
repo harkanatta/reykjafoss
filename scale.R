@@ -1,7 +1,7 @@
-Packages <- c("magrittr", "magick", "here", "exifr", "sf", "tidyverse")
+Packages <- c("magrittr", "magick", "here", "exifr", "sf", "tidyverse", "glue", "httr", "stringr", "leaflet", "leaflet.extras", "leafem", "leafpop", "htmlwidgets")
 pacman::p_load(Packages, character.only = TRUE)
 
-
+#Lesa inn myndir, búa til möppu "minnimyndir" og setja þær inn í hana
 herepath <- here()
 pathnew <- paste(herepath,"minnimyndir",sep = "/")
 dir.create(pathnew)
@@ -17,45 +17,46 @@ print(paste(gsub(".*[/]([^.]+)[.].*", "\\1", i)))
   image_write(mynd, path = paste(pathnew,paste(gsub(".*[/]([^.]+)[.].*", "\\1", i),"JPEG",sep = "."),sep = "/"))
 }
 
-#ATH! þurfti að gera: remotes::install_github("r-spatial/leafem") ### vesen með eina mynd fyrir hvern punkt, þær komu alltaf allar í alla punktana
+### Git: commit og push
 
 ###Ná í slóðirnar að myndunum eftir að þær eru komnar í möppuna minnimyndir
-library(httr)
 req <- GET("https://api.github.com/repos/harkanatta/reykjafoss/git/trees/main?recursive=1")
 stop_for_status(req)
-filelist <- unlist(lapply(content(req)$tree, "[", "path"), use.names = F)
-myndalisti <- grep("minnimyndir", filelist, value = TRUE, fixed = TRUE)
-myndaurl <- list()
-for (i in 1:length(myndalisti)) {
-myndaurl[i] <-  paste0("https://raw.githubusercontent.com/harkanatta/reykjafoss/main/",myndalisti[i],sep = "")
+
+filelist <- tibble(path=unlist(lapply(content(req)$tree, "[", "path"), use.names = F) %>% 
+                     stringr::str_subset("minnimyndir") %>% 
+                     stringr::str_subset("JPEG|JPG|PNG")) %>%
+  mutate(URL='https://raw.githubusercontent.com/harkanatta/reykjafoss/main/',
+         mURL=glue("{URL}{path}")) %>% 
+  select(mURL)
+
+for (i in filelist) {
+  a=glue('<!-- .slide: data-background="{i}"data-background-size="contain" -->\n<span>\n\n:::success\nminntexti\n:::\n<!-- .element: class="fragment" data-fragment-index="1" --></span>\n\n---\n\n')
 }
-unname(unlist(myndaurl))
+clipr::write_clip(a) #slæðurnar komnar í clipboard
 
-image_files <- list.files(pathnew, full.names = TRUE,recursive = T)
-svaka <- read_exif(image_files,tags = "GPSPosition")
-rass <- separate(svaka, GPSPosition, into = c("lat", "lon"), sep = "\\s") %>% mutate(lat=as.numeric(lat), lon=as.numeric(lon))
-rass <- rass[!is.na(rass$lat) & !is.na(rass$lon),]
-ress <- st_as_sf(rass, coords = c("lon", "lat"), crs = 'WGS84')
-ress$myndir <- unname(unlist(myndaurl))[grepl("JPEG|JPG|PNG",unname(unlist(myndaurl)))]
+### Opna slæðuskjalið og líma inn í
+
+### Kort
+
+image_files <- list.files(pathnew, full.names = TRUE,recursive = T) %>% 
+  read_exif(tags = "GPSPosition") %>% 
+  separate(GPSPosition, into = c("lat", "lon"), sep = "\\s") %>% 
+  mutate(lat=as.numeric(lat), lon=as.numeric(lon),
+         myndir=filelist$mURL) %>% 
+  st_as_sf(coords = c("lon", "lat"), crs = 'WGS84')
+
 img <- "https://github.com/harkanatta/ssnv_trident/blob/master/graphs/tvologo.jpg?raw=true"
-map <- mapview(nvumd,col.regions="#cb5600",map.types="Stamen.TerrainBackground", legend = FALSE) +
-  mapview(ress,legend=F,popup = leafpop::popupImage(ress$myndir))
-
-map %>% 
-  leafem::addLogo(img, width = '20%', height = '25%',offset.y = 20,offset.x = 80,alpha = 0.7) %>% 
-  leaflet.extras::addFullscreenControl(pseudoFullscreen = T)
-
-
-library(leaflet)
 
 m <- leaflet() %>%
   addTiles() %>% 
   addProviderTiles(providers$OpenStreetMap) %>%
   addScaleBar() %>% 
-  addCircleMarkers(data = ress,
-                   popup = popupImage(ress$myndir)) %>% 
+  addCircleMarkers(data = image_files,
+                   popup = leafpop::popupImage(image_files$myndir)) %>% 
   leafem::addLogo(img, width = '20%', height = '25%',offset.y = 20,offset.x = 80,alpha = 0.7) %>% 
   leaflet.extras::addFullscreenControl(pseudoFullscreen = T)
 
-library(htmlwidgets)
-saveWidget(m, file="m.html")
+
+
+#saveWidget(m, file="m.html")
