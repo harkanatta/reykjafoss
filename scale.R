@@ -50,13 +50,14 @@ img <- "https://github.com/harkanatta/ssnv_trident/blob/master/graphs/tvologo.jp
 
 m <- leaflet() %>%
   addTiles() %>% 
-  addProviderTiles(providers$OpenStreetMap) %>%
+  addProviderTiles(providers$Esri.WorldImagery) %>%
   addScaleBar() %>% 
   addCircleMarkers(data = image_files,
-                   popup = leafpop::popupImage(image_files$myndir)) %>% 
+                   popup = leafpop::popupImage(image_files$myndir),
+                   color = "#FFFF00") %>% 
   leafem::addLogo(img, width = '20%', height = '25%',offset.y = 20,offset.x = 80,alpha = 0.7) %>% 
   leaflet.extras::addFullscreenControl(pseudoFullscreen = T)
 
 
 
-#saveWidget(m, file="m.html")
+#saveWidget(m, file="index.html")
