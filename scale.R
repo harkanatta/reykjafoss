@@ -48,11 +48,14 @@ map %>%
 
 library(leaflet)
 
-leaflet() %>%
+m <- leaflet() %>%
   addTiles() %>% 
-  addProviderTiles(providers$OpenTopoMap) %>%
+  addProviderTiles(providers$OpenStreetMap) %>%
   addScaleBar() %>% 
   addCircleMarkers(data = ress,
                    popup = popupImage(ress$myndir)) %>% 
   leafem::addLogo(img, width = '20%', height = '25%',offset.y = 20,offset.x = 80,alpha = 0.7) %>% 
   leaflet.extras::addFullscreenControl(pseudoFullscreen = T)
+
+library(htmlwidgets)
+saveWidget(m, file="m.html")
